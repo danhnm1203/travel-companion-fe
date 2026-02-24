@@ -44,7 +44,7 @@ const getAreaName = (poi: POI): string => {
 
 export default function MapView({ day }: MapViewProps) {
   // Calculate center point
-  const positions = day.pois.map(poi => ({ lat: poi.lat, lng: poi.lng, ...poi }));
+  const positions = day.pois.map(poi => ({ ...poi }));
   const centerLat = positions.reduce((sum, pos) => sum + pos.lat, 0) / positions.length;
   const centerLng = positions.reduce((sum, pos) => sum + pos.lng, 0) / positions.length;
 
