@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -32,6 +32,27 @@ export type Screen = 'landing' | 'step1' | 'step2' | 'step3' | 'step4' | 'step5'
 const DESTINATION_ID = 'e300b4bc-43ae-43e3-8d59-83fadc28c464';
 const DEPARTURE_PROVINCE_ID = '2c316d27-f305-424a-9388-1aeba497e7a8';
 
+// Extracted outside component to avoid recreating on every render
+const slideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? '100%' : '-100%',
+    opacity: 0
+  }),
+  center: {
+    x: 0,
+    opacity: 1
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? '-100%' : '100%',
+    opacity: 0
+  })
+};
+
+const slideTransition = {
+  x: { type: 'spring' as const, stiffness: 300, damping: 30 },
+  opacity: { duration: 0.2 }
+};
+
 export default function TripWizard() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
   const [direction, setDirection] = useState(1);
@@ -41,17 +62,17 @@ export default function TripWizard() {
   const [itineraryResult, setItineraryResult] = useState<ItineraryResponse | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const navigateTo = (screen: Screen, dir = 1) => {
+  const navigateTo = useCallback((screen: Screen, dir = 1) => {
     setDirection(dir);
     setCurrentScreen(screen);
-  };
+  }, []);
 
-  const updateSelection = <K extends keyof TripSelections>(
+  const updateSelection = useCallback(<K extends keyof TripSelections>(
     key: K,
     value: TripSelections[K]
   ) => {
     setSelections(prev => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
   const handleCreateItinerary = useCallback(async () => {
     navigateTo('loading');
@@ -83,69 +104,73 @@ export default function TripWizard() {
         description: err instanceof Error ? err.message : 'Vui lòng thử lại sau',
       });
     }
-  }, [selections]);
+  }, [selections, navigateTo]);
 
-  const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? '100%' : '-100%',
-      opacity: 0
-    }),
-    center: {
-      x: 0,
-      opacity: 1
-    },
-    exit: (direction: number) => ({
-      x: direction > 0 ? '-100%' : '100%',
-      opacity: 0
-    })
-  };
+  // Stable callbacks for navigation — avoids recreating arrow functions each render
+  const goToStep1 = useCallback(() => navigateTo('step1'), [navigateTo]);
+  const goToLandingBack = useCallback(() => navigateTo('landing', -1), [navigateTo]);
+  const goToStep2 = useCallback(() => navigateTo('step2'), [navigateTo]);
+  const goToStep1Back = useCallback(() => navigateTo('step1', -1), [navigateTo]);
+  const goToStep3 = useCallback(() => navigateTo('step3'), [navigateTo]);
+  const goToStep2Back = useCallback(() => navigateTo('step2', -1), [navigateTo]);
+  const goToStep4 = useCallback(() => navigateTo('step4'), [navigateTo]);
+  const goToStep3Back = useCallback(() => navigateTo('step3', -1), [navigateTo]);
+  const goToStep5 = useCallback(() => navigateTo('step5'), [navigateTo]);
+  const goToStep4Back = useCallback(() => navigateTo('step4', -1), [navigateTo]);
+  const goToStep5Back = useCallback(() => navigateTo('step5', -1), [navigateTo]);
+  const handleEditStep = useCallback((step: string) => navigateTo(step as Screen, -1), [navigateTo]);
+
+  const selectDuration = useCallback((v: string) => updateSelection('duration', v), [updateSelection]);
+  const selectCompanion = useCallback((v: string) => updateSelection('companion', v), [updateSelection]);
+  const selectVibes = useCallback((v: string[]) => updateSelection('vibes', v), [updateSelection]);
+  const selectBudget = useCallback((v: string) => updateSelection('budget', v), [updateSelection]);
 
   const renderScreen = () => {
     switch (currentScreen) {
       case 'landing':
-        return <Landing onStart={() => navigateTo('step1')} />;
+        return <Landing onStart={goToStep1} />;
       case 'step1':
         return (
           <Step1
             selected={selections.duration}
-            onSelect={(value) => updateSelection('duration', value)}
-            onBack={() => navigateTo('landing', -1)}
-            onNext={() => navigateTo('step2')}
+            onSelect={selectDuration}
+            onBack={goToLandingBack}
+            onNext={goToStep2}
           />
         );
       case 'step2':
         return (
           <Step2
             selected={selections.companion}
-            onSelect={(value) => updateSelection('companion', value)}
-            onBack={() => navigateTo('step1', -1)}
-            onNext={() => navigateTo('step3')}
+            onSelect={selectCompanion}
+            onBack={goToStep1Back}
+            onNext={goToStep3}
           />
         );
       case 'step3':
         return (
           <Step3
             selected={selections.vibes}
-            onSelect={(value) => updateSelection('vibes', value)}
-            onBack={() => navigateTo('step2', -1)}
-            onNext={() => navigateTo('step4')}
+            onSelect={selectVibes}
+            onBack={goToStep2Back}
+            onNext={goToStep4}
           />
         );
       case 'step4':
         return (
           <Step4
             selected={selections.budget}
-            onSelect={(value) => updateSelection('budget', value)}
-            onBack={() => navigateTo('step3', -1)}
-            onNext={() => navigateTo('step5')}
+            onSelect={selectBudget}
+            onBack={goToStep3Back}
+            onNext={goToStep5}
           />
         );
       case 'step5':
         return (
           <Step5
             selections={selections}
-            onBack={() => navigateTo('step4', -1)}
-            onEdit={(step) => navigateTo(step as Screen, -1)}
+            onBack={goToStep4Back}
+            onEdit={handleEditStep}
             onCreate={handleCreateItinerary}
           />
         );
@@ -155,7 +180,7 @@ export default function TripWizard() {
         return (
           <Itinerary
             itinerary={itineraryResult!}
-            onCreateNew={() => navigateTo('step5', -1)}
+            onCreateNew={goToStep5Back}
           />
         );
       default:
@@ -174,10 +199,7 @@ export default function TripWizard() {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{
-              x: { type: 'spring', stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 }
-            }}
+            transition={slideTransition}
             className="absolute inset-0"
           >
             {renderScreen()}

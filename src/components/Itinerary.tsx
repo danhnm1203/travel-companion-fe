@@ -1,9 +1,19 @@
-import { useState } from 'react';
-import { Share2, Bookmark, ThumbsUp, ThumbsDown, RefreshCw, Bed } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Share2, Bookmark, ThumbsUp, ThumbsDown, RefreshCw, Bed, MapPin, ExternalLink, Image } from 'lucide-react';
 import { toast } from 'sonner';
 import { type ItineraryResponse } from '@/lib/api';
 import POICard from './POICard';
-import InlineMapView from './InlineMapView';
+import dynamic from 'next/dynamic';
+
+// Lazy-load heavy components
+const InlineMapView = dynamic(() => import('./InlineMapView'), {
+  ssr: false,
+  loading: () => <div className="w-full h-56 bg-gray-100 animate-pulse" />,
+});
+
+const ItineraryInfographic = dynamic(() => import('./ItineraryInfographic'), {
+  ssr: false,
+});
 
 interface ItineraryProps {
   itinerary: ItineraryResponse;
@@ -16,45 +26,60 @@ function formatCurrency(vnd: number): string {
   return `${vnd}đ`;
 }
 
+/** Build a Google Maps Directions URL with multiple stops */
+function buildGoogleMapsRouteUrl(items: { poi: { latitude: number; longitude: number } }[]): string {
+  if (items.length === 0) return '#';
+  // Format: /dir/lat1,lng1/lat2,lng2/.../latN,lngN
+  const coords = items.map(item => `${item.poi.latitude},${item.poi.longitude}`);
+  return `https://www.google.com/maps/dir/${coords.join('/')}`;
+}
+
 export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
   const [activeDay, setActiveDay] = useState(0);
   const [feedbackGiven, setFeedbackGiven] = useState<'good' | 'bad' | null>(null);
   const [showFeedbackOptions, setShowFeedbackOptions] = useState(false);
+  const [showInfographic, setShowInfographic] = useState(false);
 
   const currentDay = itinerary.days[activeDay];
-  const totalPois = itinerary.days.reduce((sum, d) => sum + d.items.length, 0);
-  const totalFood = itinerary.days.reduce(
-    (sum, d) => sum + d.items.filter(item => item.poi.categories.includes('food')).length,
-    0
-  );
 
-  const handleShare = () => {
+  // Memoize aggregated stats to avoid recalculating on every render
+  const { totalPois, totalFood } = useMemo(() => ({
+    totalPois: itinerary.days.reduce((sum, d) => sum + d.items.length, 0),
+    totalFood: itinerary.days.reduce(
+      (sum, d) => sum + d.items.filter(item => item.poi.categories.includes('food')).length,
+      0
+    ),
+  }), [itinerary.days]);
+
+  // Stable callback refs to prevent child re-renders
+  const handleShare = useCallback(() => {
     toast.success('Đã copy link!', {
       description: 'Link lịch trình đã được sao chép vào clipboard'
     });
-  };
+  }, []);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     toast.info('Tính năng đang phát triển!', {
       description: 'Chức năng lưu lịch trình sẽ có trong phiên bản tiếp theo'
     });
-  };
+  }, []);
 
-  const handleFeedback = (type: 'good' | 'bad') => {
+  const handleFeedback = useCallback((type: 'good' | 'bad') => {
     setFeedbackGiven(type);
     if (type === 'good') {
       toast.success('Cảm ơn nha! Chúc đi vui 🎉');
     } else {
       setShowFeedbackOptions(true);
     }
-  };
+  }, []);
 
-  const handleFeedbackOption = (_option: string) => {
+  const handleFeedbackOption = useCallback((_option: string) => {
     toast.success('Noted! Mình sẽ cải thiện 🙏');
     setShowFeedbackOptions(false);
-  };
+  }, []);
 
   return (
+    <>
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
@@ -118,9 +143,19 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
         <InlineMapView days={itinerary.days} activeDay={activeDay} />
 
         <div className="px-4 py-4">
-          {/* Day title + narrative */}
+          {/* Day title + Google Maps route button */}
           <div className="mb-4">
-            <h2 className="text-lg font-bold mb-1">{currentDay.theme}</h2>
+            <h2 className="text-lg font-bold mb-2">{currentDay.theme}</h2>
+            <a
+              href={buildGoogleMapsRouteUrl(currentDay.items)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-sm px-3 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors"
+            >
+              <MapPin className="w-4 h-4" />
+              Mở lộ trình Ngày {currentDay.day_number} trong Google Maps
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           </div>
 
           {/* POI timeline */}
@@ -180,7 +215,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
                 </div>
               </div>
 
-              {/* Share/Save buttons */}
+              {/* Share/Save/Infographic buttons */}
               <div className="flex gap-3">
                 <button
                   onClick={handleShare}
@@ -195,6 +230,14 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
                   💾 Lưu lại
                 </button>
               </div>
+
+              <button
+                onClick={() => setShowInfographic(true)}
+                className="w-full py-3 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-cyan-600 hover:to-emerald-600 transition-all flex items-center justify-center gap-2"
+              >
+                <Image className="w-5 h-5" />
+                Tạo Infographic lịch trình
+              </button>
 
               {/* Feedback */}
               <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -256,5 +299,14 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
         </div>
       </div>
     </div>
+
+    {/* Infographic modal */}
+    {showInfographic && (
+      <ItineraryInfographic
+        itinerary={itinerary}
+        onClose={() => setShowInfographic(false)}
+      />
+    )}
+    </>
   );
 }

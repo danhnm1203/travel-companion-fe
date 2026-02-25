@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronUp, Clock, Car } from 'lucide-react';
+import { useState, memo } from 'react';
+import { ChevronUp, Clock, Car } from 'lucide-react';
 import { type ItineraryItemResponse } from '@/lib/api';
 
 interface POICardProps {
@@ -52,7 +52,7 @@ function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-export default function POICard({ item, showTravel }: POICardProps) {
+const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
   const [showAllTips, setShowAllTips] = useState(false);
   const { poi } = item;
   const hasTips = poi.tips && poi.tips.length > 0;
@@ -142,7 +142,7 @@ export default function POICard({ item, showTravel }: POICardProps) {
             </div>
 
             {/* Line 5: Type Tag */}
-            <div className="flex flex-wrap gap-1.5 mb-3">
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
               <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md font-medium">
                 {getCategoryLabel(poi.categories)}
               </span>
@@ -198,4 +198,6 @@ export default function POICard({ item, showTravel }: POICardProps) {
       </div>
     </div>
   );
-}
+});
+
+export default POICard;
