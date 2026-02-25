@@ -1,6 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
 import { vibeOptions } from '@/data/mockData';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface Step3Props {
   selected: string[];
@@ -10,11 +9,16 @@ interface Step3Props {
 }
 
 export default function Step3({ selected, onSelect, onBack, onNext }: Step3Props) {
+  const maxSelections = 3;
+  const isMaxReached = selected.length >= maxSelections;
+
   const toggleVibe = (value: string) => {
     if (selected.includes(value)) {
       onSelect(selected.filter(v => v !== value));
     } else {
-      onSelect([...selected, value]);
+      if (selected.length < maxSelections) {
+        onSelect([...selected, value]);
+      }
     }
   };
 
@@ -39,43 +43,38 @@ export default function Step3({ selected, onSelect, onBack, onNext }: Step3Props
           <h2 className="text-3xl font-bold mb-2">
             Trải nghiệm kiểu gì?
           </h2>
-          <p className="text-gray-600 text-sm">
-            Chọn bao nhiêu cũng được, mình sắp xếp hết!
+          <p className="text-gray-600 text-sm mb-2">
+            Chọn tối đa 3 vibe bạn thích nhất
+          </p>
+          <p className="text-sm font-medium">
+            Đã chọn: <span className="text-emerald-600">{selected.length}/{maxSelections}</span>
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          {vibeOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => toggleVibe(option.value)}
-              className={`px-4 py-3 rounded-xl border-2 transition-all flex items-center gap-2 justify-center ${
-                selected.includes(option.value)
-                  ? 'border-emerald-600 bg-emerald-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <span className="text-2xl">{option.emoji}</span>
-              <span className="font-semibold text-base">{option.label}</span>
-            </button>
-          ))}
+          {vibeOptions.map((option) => {
+            const isSelected = selected.includes(option.value);
+            const isDimmed = isMaxReached && !isSelected;
+            
+            return (
+              <button
+                key={option.value}
+                onClick={() => toggleVibe(option.value)}
+                disabled={isDimmed}
+                className={`px-4 py-3 rounded-xl border-2 transition-all flex items-center gap-2 justify-center ${
+                  isSelected
+                    ? 'border-emerald-600 bg-emerald-50'
+                    : isDimmed
+                    ? 'border-gray-200 opacity-40 cursor-not-allowed'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <span className="text-2xl">{option.emoji}</span>
+                <span className="font-semibold text-base">{option.label}</span>
+              </button>
+            );
+          })}
         </div>
-
-        {/* Warning for too many selections */}
-        <AnimatePresence>
-          {selected.length >= 4 && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl"
-            >
-              <p className="text-xs text-amber-800 text-center">
-                Chọn nhiều vibe thì lịch trình sẽ đa dạng hơn, nhưng mỗi trải nghiệm sẽ ngắn hơn xíu nha 😊
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Fixed button at bottom */}
