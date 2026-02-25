@@ -1,34 +1,35 @@
 import { useState } from 'react';
-import { Share2, Bookmark, ThumbsUp, ThumbsDown, RefreshCw, Smartphone } from 'lucide-react';
+import { Share2, Bookmark, ThumbsUp, ThumbsDown, RefreshCw, Smartphone, Bed } from 'lucide-react';
 import { toast } from 'sonner';
-import { TripSelections } from '@/components/TripWizard';
-import { mockItinerary3Days, vibeOptions } from '@/data/mockData';
+import { type ItineraryResponse } from '@/lib/api';
 import POICard from './POICard';
 import MapView from './MapView';
 
 interface ItineraryProps {
-  selections: TripSelections;
+  itinerary: ItineraryResponse;
   onCreateNew: () => void;
 }
 
 type ViewMode = 'list' | 'map';
 
-export default function Itinerary({ selections, onCreateNew }: ItineraryProps) {
+function formatCurrency(vnd: number): string {
+  if (vnd >= 1_000_000) return `${(vnd / 1_000_000).toFixed(1)}tr`;
+  if (vnd >= 1_000) return `${(vnd / 1_000).toFixed(0)}k`;
+  return `${vnd}đ`;
+}
+
+export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
   const [activeDay, setActiveDay] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [feedbackGiven, setFeedbackGiven] = useState<'good' | 'bad' | null>(null);
   const [showFeedbackOptions, setShowFeedbackOptions] = useState(false);
 
-  const itinerary = mockItinerary3Days;
-  const currentDay = itinerary[activeDay];
-
-  // Generate trip title
-  const vibesText = selections.vibes
-    .map(v => vibeOptions.find(vo => vo.value === v)?.label)
-    .filter(Boolean)
-    .slice(0, 2)
-    .join(' + ');
-  const tripTitle = `Hà Giang 3N2Đ · ${vibesText}`;
+  const currentDay = itinerary.days[activeDay];
+  const totalPois = itinerary.days.reduce((sum, d) => sum + d.items.length, 0);
+  const totalFood = itinerary.days.reduce(
+    (sum, d) => sum + d.items.filter(item => item.poi.categories.includes('food')).length,
+    0
+  );
 
   const handleShare = () => {
     toast.success('Đã copy link!', {
@@ -67,9 +68,9 @@ export default function Itinerary({ selections, onCreateNew }: ItineraryProps) {
         {/* Title row with action buttons */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold leading-tight mb-0.5">{tripTitle}</h1>
+            <h1 className="text-lg font-bold leading-tight mb-0.5">{itinerary.title}</h1>
             <p className="text-xs text-gray-600">
-              3 ngày · 12 điểm đến · 4 quán ăn
+              {itinerary.num_days} ngày · {totalPois} điểm đến · {totalFood} quán ăn
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -116,9 +117,9 @@ export default function Itinerary({ selections, onCreateNew }: ItineraryProps) {
 
         {/* Day tabs */}
         <div className="flex gap-2">
-          {itinerary.map((day, index) => (
+          {itinerary.days.map((day, index) => (
             <button
-              key={day.day}
+              key={day.day_number}
               onClick={() => setActiveDay(index)}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeDay === index
@@ -126,7 +127,7 @@ export default function Itinerary({ selections, onCreateNew }: ItineraryProps) {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Ngày {day.day}
+              Ngày {day.day_number}
             </button>
           ))}
         </div>
@@ -137,47 +138,60 @@ export default function Itinerary({ selections, onCreateNew }: ItineraryProps) {
         {viewMode === 'list' ? (
           <div className="px-6 py-4">
             {/* Day title */}
-            <h2 className="text-lg font-bold mb-4">{currentDay.title}</h2>
+            <h2 className="text-lg font-bold mb-4">{currentDay.theme}</h2>
 
             {/* POI timeline */}
             <div className="space-y-0">
-              {currentDay.pois.map((poi, index) => (
+              {currentDay.items.map((item, index) => (
                 <POICard
-                  key={poi.id}
-                  poi={poi}
+                  key={item.poi.id}
+                  item={item}
                   showTravel={index > 0}
                 />
               ))}
             </div>
 
+            {/* Accommodation card */}
+            {currentDay.accommodation && (
+              <div className="mt-4 bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bed className="w-5 h-5 text-purple-600" />
+                  <h3 className="font-semibold text-purple-900">Chỗ nghỉ</h3>
+                </div>
+                <p className="font-medium text-gray-900">{currentDay.accommodation.name}</p>
+                <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+                  <span>💰 {formatCurrency(currentDay.accommodation.avg_cost_vnd)}</span>
+                  {currentDay.accommodation.google_rating && (
+                    <span>⭐ {currentDay.accommodation.google_rating}</span>
+                  )}
+                  <span className="capitalize">{currentDay.accommodation.budget_level}</span>
+                </div>
+              </div>
+            )}
+
             {/* Day summary */}
             <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
-              <h3 className="font-semibold mb-3">Tổng kết Ngày {currentDay.day}</h3>
+              <h3 className="font-semibold mb-3">Tổng kết Ngày {currentDay.day_number}</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <div className="text-gray-600">Tổng quãng đường</div>
-                  <div className="font-semibold">{currentDay.summary.totalDistance}</div>
-                </div>
-                <div>
-                  <div className="text-gray-600">Thời gian di chuyển</div>
-                  <div className="font-semibold">{currentDay.summary.totalTravelTime}</div>
+                  <div className="font-semibold">{currentDay.distance_km.toFixed(1)} km</div>
                 </div>
                 <div>
                   <div className="text-gray-600">Số điểm dừng</div>
-                  <div className="font-semibold">{currentDay.summary.stops} điểm</div>
-                </div>
-                <div>
-                  <div className="text-gray-600">Chi phí dự kiến</div>
-                  <div className="font-semibold">{currentDay.summary.estimatedCost}/người</div>
+                  <div className="font-semibold">{currentDay.items.length} điểm</div>
                 </div>
               </div>
             </div>
 
             {/* Footer actions - only show on last day's list view */}
-            {activeDay === itinerary.length - 1 && (
+            {activeDay === itinerary.days.length - 1 && (
               <div className="mt-8 space-y-6 pb-6">
                 <div className="text-center">
                   <h3 className="text-xl font-bold mb-2">Lịch trình xong rồi nè! 🎉</h3>
+                  <p className="text-sm text-gray-600">
+                    Tổng quãng đường: {itinerary.total_distance_km.toFixed(1)} km
+                  </p>
                 </div>
 
                 {/* Share/Save buttons */}

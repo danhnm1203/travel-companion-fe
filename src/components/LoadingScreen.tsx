@@ -2,11 +2,7 @@ import { useState, useEffect } from 'react';
 import { loadingMessages } from '@/data/mockData';
 import { Loader2 } from 'lucide-react';
 
-interface LoadingScreenProps {
-  onComplete: () => void;
-}
-
-export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
+export default function LoadingScreen() {
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
@@ -14,15 +10,10 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
       setMessageIndex(prev => (prev + 1) % loadingMessages.length);
     }, 1800);
 
-    const completeTimeout = setTimeout(() => {
-      onComplete();
-    }, 4000);
-
     return () => {
       clearInterval(messageInterval);
-      clearTimeout(completeTimeout);
     };
-  }, [onComplete]);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 px-6">

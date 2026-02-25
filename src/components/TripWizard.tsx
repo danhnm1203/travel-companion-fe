@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import Landing from '@/components/Landing';
 import Step1 from '@/components/Step1';
 import Step2 from '@/components/Step2';
@@ -11,6 +12,12 @@ import Step4 from '@/components/Step4';
 import Step5 from '@/components/Step5';
 import LoadingScreen from '@/components/LoadingScreen';
 import Itinerary from '@/components/Itinerary';
+import {
+  generateItinerary,
+  type GenerateItineraryRequest,
+  type ItineraryResponse,
+} from '@/lib/api';
+import { durationToNumDays, budgetAmountMap } from '@/data/mockData';
 
 export interface TripSelections {
   duration?: string;
@@ -21,12 +28,18 @@ export interface TripSelections {
 
 export type Screen = 'landing' | 'step1' | 'step2' | 'step3' | 'step4' | 'step5' | 'loading' | 'itinerary';
 
+// Hardcoded IDs for Ha Giang (per the approved plan)
+const DESTINATION_ID = 'e300b4bc-43ae-43e3-8d59-83fadc28c464';
+const DEPARTURE_PROVINCE_ID = '2c316d27-f305-424a-9388-1aeba497e7a8';
+
 export default function TripWizard() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
   const [direction, setDirection] = useState(1);
   const [selections, setSelections] = useState<TripSelections>({
     vibes: []
   });
+  const [itineraryResult, setItineraryResult] = useState<ItineraryResponse | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const navigateTo = (screen: Screen, dir = 1) => {
     setDirection(dir);
@@ -39,6 +52,38 @@ export default function TripWizard() {
   ) => {
     setSelections(prev => ({ ...prev, [key]: value }));
   };
+
+  const handleCreateItinerary = useCallback(async () => {
+    navigateTo('loading');
+    setIsGenerating(true);
+
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const request: GenerateItineraryRequest = {
+      destination_id: DESTINATION_ID,
+      departure_province_id: DEPARTURE_PROVINCE_ID,
+      num_days: durationToNumDays[selections.duration ?? '3d2n'] ?? 3,
+      start_date: today,
+      budget_amount: budgetAmountMap[selections.budget ?? 'comfortable'] ?? 6_000_000,
+      pace: 'moderate',
+      companion_codes: selections.companion ? [selections.companion] : [],
+      vibe_codes: selections.vibes,
+      keep_same_accommodation: false,
+    };
+
+    try {
+      const result = await generateItinerary(request);
+      setItineraryResult(result);
+      setIsGenerating(false);
+      navigateTo('itinerary');
+    } catch (err) {
+      setIsGenerating(false);
+      navigateTo('step5', -1);
+      toast.error('Không tạo được lịch trình 😢', {
+        description: err instanceof Error ? err.message : 'Vui lòng thử lại sau',
+      });
+    }
+  }, [selections]);
 
   const slideVariants = {
     enter: (direction: number) => ({
@@ -101,15 +146,15 @@ export default function TripWizard() {
             selections={selections}
             onBack={() => navigateTo('step4', -1)}
             onEdit={(step) => navigateTo(step as Screen, -1)}
-            onCreate={() => navigateTo('loading')}
+            onCreate={handleCreateItinerary}
           />
         );
       case 'loading':
-        return <LoadingScreen onComplete={() => navigateTo('itinerary')} />;
+        return <LoadingScreen />;
       case 'itinerary':
         return (
           <Itinerary
-            selections={selections}
+            itinerary={itineraryResult!}
             onCreateNew={() => navigateTo('step5', -1)}
           />
         );
