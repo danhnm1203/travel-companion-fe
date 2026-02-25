@@ -1,40 +1,11 @@
 import { useState, memo } from 'react';
 import { ChevronUp, Clock, Car } from 'lucide-react';
 import { type ItineraryItemResponse } from '@/lib/api';
+import { getCategoryStyle, getCategoryLabel, translateNotes } from '@/data/categories';
 
 interface POICardProps {
   item: ItineraryItemResponse;
   showTravel: boolean;
-}
-
-const categoryColors: Record<string, { bg: string; border: string }> = {
-  attraction: { bg: 'bg-blue-500', border: 'border-l-blue-500' },
-  food: { bg: 'bg-orange-500', border: 'border-l-orange-500' },
-  accommodation: { bg: 'bg-purple-500', border: 'border-l-purple-500' },
-  cafe: { bg: 'bg-amber-500', border: 'border-l-amber-500' },
-  shopping: { bg: 'bg-pink-500', border: 'border-l-pink-500' },
-};
-
-const categoryLabels: Record<string, string> = {
-  attraction: 'Tham quan',
-  food: 'Ăn uống',
-  accommodation: 'Nghỉ ngơi',
-  cafe: 'Cafe',
-  shopping: 'Mua sắm',
-};
-
-function getCategoryStyle(categories: string[]): { bg: string; border: string } {
-  for (const cat of categories) {
-    if (categoryColors[cat]) return categoryColors[cat];
-  }
-  return { bg: 'bg-gray-400', border: 'border-l-gray-400' };
-}
-
-function getCategoryLabel(categories: string[]): string {
-  for (const cat of categories) {
-    if (categoryLabels[cat]) return categoryLabels[cat];
-  }
-  return categories[0] ?? 'Điểm đến';
 }
 
 function formatTime(timeStr: string): string {
@@ -55,7 +26,6 @@ function formatDistance(km: number): string {
 const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
   const [showAllTips, setShowAllTips] = useState(false);
   const { poi } = item;
-  const hasTips = poi.tips && poi.tips.length > 0;
   const hasWarnings = poi.warnings && poi.warnings.length > 0;
   const firstTip = poi.tips?.[0];
   const remainingTips = poi.tips?.slice(1) || [];
@@ -150,7 +120,7 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
 
             {/* Notes */}
             {item.notes && (
-              <p className="text-sm text-gray-700 mb-2 italic">{item.notes}</p>
+              <p className="text-sm text-gray-700 mb-2 italic">{translateNotes(item.notes)}</p>
             )}
 
             {/* Line 6: Preview Tip */}

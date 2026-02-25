@@ -182,7 +182,6 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
                 {currentDay.accommodation.google_rating && (
                   <span>⭐ {currentDay.accommodation.google_rating}</span>
                 )}
-                <span className="capitalize">{currentDay.accommodation.budget_level}</span>
               </div>
             </div>
           )}

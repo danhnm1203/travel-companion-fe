@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { type DayResponse } from '@/lib/api';
+import { getCategoryLabel, getCategoryColor } from '@/data/categories';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -18,35 +19,6 @@ L.Icon.Default.mergeOptions({
 });
 
 const dayColors = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899'];
-
-const categoryLabels: Record<string, string> = {
-  attraction: 'Tham quan',
-  food: 'Ăn uống',
-  accommodation: 'Nghỉ ngơi',
-  cafe: 'Cafe',
-  shopping: 'Mua sắm',
-};
-
-function getCategoryLabel(categories: string[]): string {
-  for (const cat of categories) {
-    if (categoryLabels[cat]) return categoryLabels[cat];
-  }
-  return categories[0] ?? 'Điểm đến';
-}
-
-function getCategoryColor(categories: string[]): string {
-  const colorMap: Record<string, string> = {
-    attraction: '#3b82f6',
-    food: '#f97316',
-    accommodation: '#a855f7',
-    cafe: '#f59e0b',
-    shopping: '#ec4899',
-  };
-  for (const cat of categories) {
-    if (colorMap[cat]) return colorMap[cat];
-  }
-  return '#9ca3af';
-}
 
 function formatTime(timeStr: string): string {
   return timeStr.slice(0, 5);

@@ -3,25 +3,11 @@
 import { useRef, useState, useCallback } from 'react';
 import { X, Download, Loader2 } from 'lucide-react';
 import { type ItineraryResponse, type DayResponse, type ItineraryItemResponse } from '@/lib/api';
+import { getCategoryEmoji } from '@/data/categories';
 
 interface ItineraryInfographicProps {
   itinerary: ItineraryResponse;
   onClose: () => void;
-}
-
-const categoryEmojis: Record<string, string> = {
-  attraction: '🏛',
-  food: '🍜',
-  accommodation: '🏨',
-  cafe: '☕',
-  shopping: '🛒',
-};
-
-function getCategoryEmoji(categories: string[]): string {
-  for (const cat of categories) {
-    if (categoryEmojis[cat]) return categoryEmojis[cat];
-  }
-  return '📍';
 }
 
 function formatTime(timeStr: string): string {
