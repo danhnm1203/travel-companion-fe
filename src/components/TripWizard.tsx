@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -54,12 +55,12 @@ const slideTransition = {
 };
 
 export default function TripWizard() {
+  const router = useRouter();
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
   const [direction, setDirection] = useState(1);
   const [selections, setSelections] = useState<TripSelections>({
     vibes: []
   });
-  const [itineraryResult, setItineraryResult] = useState<ItineraryResponse | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const navigateTo = useCallback((screen: Screen, dir = 1) => {
@@ -94,9 +95,8 @@ export default function TripWizard() {
 
     try {
       const result = await generateItinerary(request);
-      setItineraryResult(result);
       setIsGenerating(false);
-      navigateTo('itinerary');
+      router.push(`/itinerary/${result.id}`);
     } catch (err) {
       setIsGenerating(false);
       navigateTo('step5', -1);
@@ -176,13 +176,6 @@ export default function TripWizard() {
         );
       case 'loading':
         return <LoadingScreen />;
-      case 'itinerary':
-        return (
-          <Itinerary
-            itinerary={itineraryResult!}
-            onCreateNew={goToStep5Back}
-          />
-        );
       default:
         return null;
     }

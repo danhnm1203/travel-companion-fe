@@ -61,6 +61,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
 
   // Stable callback refs to prevent child re-renders
   const handleShare = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href);
     toast.success('Đã copy link!', {
       description: 'Link lịch trình đã được sao chép vào clipboard'
     });

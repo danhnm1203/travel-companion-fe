@@ -99,3 +99,21 @@ export async function generateItinerary(
 
     return res.json() as Promise<ItineraryResponse>;
 }
+
+export async function getItinerary(
+    id: string
+): Promise<ItineraryResponse> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/itineraries/${id}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+        const errorBody = await res.text().catch(() => "");
+        throw new Error(
+            `API error ${res.status}: ${errorBody || res.statusText}`
+        );
+    }
+
+    return res.json() as Promise<ItineraryResponse>;
+}
