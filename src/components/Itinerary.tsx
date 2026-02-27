@@ -41,6 +41,11 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
   const [showInfographic, setShowInfographic] = useState(false);
 
   const currentDay = itinerary.days[activeDay];
+  
+  // Sort items by order_index to ensure correct sequence
+  const sortedItems = useMemo(() => {
+    return [...currentDay.items].sort((a, b) => a.order_index - b.order_index);
+  }, [currentDay.items]);
 
   // Memoize aggregated stats to avoid recalculating on every render
   const { totalPois, totalFood } = useMemo(() => ({
@@ -160,7 +165,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
 
           {/* POI timeline */}
           <div className="space-y-0">
-            {currentDay.items.map((item, index) => (
+            {sortedItems.map((item, index) => (
               <POICard
                 key={item.poi.id}
                 item={item}
