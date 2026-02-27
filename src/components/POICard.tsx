@@ -100,7 +100,7 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
               <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-2">
                 <span>⭐ {poi.google_rating.toFixed(1)}</span>
                 {poi.google_reviews_count != null && (
-                  <span className="text-gray-400">({poi.google_reviews_count.toLocaleString()} đánh giá)</span>
+                  <span> · {poi.google_reviews_count.toLocaleString()} đánh giá</span>
                 )}
               </div>
             )}
