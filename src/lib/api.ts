@@ -75,37 +75,21 @@ export interface ItineraryResponse {
 
 // ── API Service ──────────────────────────────────────────────────────────────
 
-const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_VERSION = "api/v1";
 
-export async function generateItinerary(
-    req: GenerateItineraryRequest
-): Promise<ItineraryResponse> {
-    const res = await fetch(
-        `${API_BASE_URL}/api/v1/itineraries/generate`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(req),
-        }
-    );
-
-    if (!res.ok) {
-        const errorBody = await res.text().catch(() => "");
-        throw new Error(
-            `API error ${res.status}: ${errorBody || res.statusText}`
-        );
-    }
-
-    return res.json() as Promise<ItineraryResponse>;
-}
-
-export async function getItinerary(
-    id: string
-): Promise<ItineraryResponse> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/itineraries/${id}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
+/** Internal helper for API requests */
+async function apiFetch<T>(
+    path: string,
+    options: RequestInit = {}
+): Promise<T> {
+    const url = `${API_BASE_URL}/${API_VERSION}/${path}`;
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...options.headers,
+        },
     });
 
     if (!res.ok) {
@@ -115,5 +99,20 @@ export async function getItinerary(
         );
     }
 
-    return res.json() as Promise<ItineraryResponse>;
+    return res.json() as Promise<T>;
+}
+
+export async function generateItinerary(
+    req: GenerateItineraryRequest
+): Promise<ItineraryResponse> {
+    return apiFetch<ItineraryResponse>("itineraries/generate", {
+        method: "POST",
+        body: JSON.stringify(req),
+    });
+}
+
+export async function getItinerary(
+    id: string
+): Promise<ItineraryResponse> {
+    return apiFetch<ItineraryResponse>(`itineraries/${id}`);
 }
