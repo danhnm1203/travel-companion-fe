@@ -51,7 +51,10 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
   const { totalPois, totalFood } = useMemo(() => ({
     totalPois: itinerary.days.reduce((sum, d) => sum + d.items.length, 0),
     totalFood: itinerary.days.reduce(
-      (sum, d) => sum + d.items.filter(item => item.poi.categories.includes('food')).length,
+      (sum, d) => sum + d.items.filter(item => {
+        const note = item.notes?.toLowerCase() || '';
+        return note === 'breakfast' || note === 'lunch' || note === 'dinner';
+      }).length,
       0
     ),
   }), [itinerary.days]);
