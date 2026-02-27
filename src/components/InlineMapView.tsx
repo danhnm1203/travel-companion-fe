@@ -27,13 +27,10 @@ function formatTime(timeStr: string): string {
 export default function InlineMapView({ days, activeDay }: InlineMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const fullscreenMapRef = useRef<L.Map | null>(null);
-  const fullscreenMapContainerRef = useRef<HTMLDivElement>(null);
   const routeLinesRef = useRef<L.Polyline[]>([]);
   const markersRef = useRef<L.Marker[]>([]);
 
-  const initializeMap = (container: HTMLDivElement, isFullscreenMap: boolean = false) => {
+  const initializeMap = (container: HTMLDivElement) => {
     // Collect all POIs from all days
     const allDaysData = days.map((day, dayIndex) => ({
       day: dayIndex,
@@ -123,21 +120,19 @@ export default function InlineMapView({ days, activeDay }: InlineMapViewProps) {
     });
 
     // Add legend
-    if (!isFullscreenMap) {
-      const legend = new L.Control({ position: 'topright' });
-      legend.onAdd = () => {
-        const div = L.DomUtil.create('div', 'map-legend');
-        div.style.cssText = 'background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 12px;';
-        div.innerHTML = days.map((day, index) => `
-          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: ${index < days.length - 1 ? '4px' : '0'};">
-            <div style="width: 12px; height: 12px; border-radius: 50%; background: ${dayColors[index % dayColors.length]};"></div>
-            <span style="font-weight: 500; color: #374151;">Ngày ${day.day_number}</span>
-          </div>
-        `).join('');
-        return div;
-      };
-      legend.addTo(map);
-    }
+    const legend = new L.Control({ position: 'topright' });
+    legend.onAdd = () => {
+      const div = L.DomUtil.create('div', 'map-legend');
+      div.style.cssText = 'background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 12px;';
+      div.innerHTML = days.map((day, index) => `
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: ${index < days.length - 1 ? '4px' : '0'};">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: ${dayColors[index % dayColors.length]};"></div>
+          <span style="font-weight: 500; color: #374151;">Ngày ${day.day_number}</span>
+        </div>
+      `).join('');
+      return div;
+    };
+    legend.addTo(map);
 
     // Fit bounds to show all markers
     const allCoords: [number, number][] = allItems.map(item => [item.poi.latitude, item.poi.longitude]);
@@ -145,19 +140,10 @@ export default function InlineMapView({ days, activeDay }: InlineMapViewProps) {
     map.fitBounds(bounds, { padding: [50, 50] });
 
     // Store references
-    if (!isFullscreenMap) {
-      routeLinesRef.current = routeLines;
-      markersRef.current = markers;
-    }
+    // Store references
+    routeLinesRef.current = routeLines;
+    markersRef.current = markers;
 
-    // Handle map click to open fullscreen (only on main map)
-    if (!isFullscreenMap) {
-      map.on('click', (e) => {
-        if (!(e.originalEvent.target as HTMLElement).closest('.leaflet-marker-icon')) {
-          setIsFullscreen(true);
-        }
-      });
-    }
 
     return map;
   };
@@ -167,7 +153,7 @@ export default function InlineMapView({ days, activeDay }: InlineMapViewProps) {
     if (!mapContainerRef.current) return;
 
     if (!mapRef.current) {
-      mapRef.current = initializeMap(mapContainerRef.current, false);
+      mapRef.current = initializeMap(mapContainerRef.current);
     }
 
     return () => {
@@ -255,62 +241,14 @@ export default function InlineMapView({ days, activeDay }: InlineMapViewProps) {
     }
   }, [activeDay]);
 
-  // Initialize fullscreen map
-  useEffect(() => {
-    if (isFullscreen && fullscreenMapContainerRef.current && !fullscreenMapRef.current) {
-      setTimeout(() => {
-        if (fullscreenMapContainerRef.current) {
-          fullscreenMapRef.current = initializeMap(fullscreenMapContainerRef.current, true);
-
-          if (fullscreenMapRef.current) {
-            // Add legend to fullscreen map
-            const legend = new L.Control({ position: 'topright' });
-            legend.onAdd = () => {
-              const div = L.DomUtil.create('div', 'map-legend');
-              div.style.cssText = 'background: white; padding: 10px 14px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 13px; margin-top: 40px;';
-              div.innerHTML = days.map((day, index) => `
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: ${index < days.length - 1 ? '6px' : '0'};">
-                  <div style="width: 14px; height: 14px; border-radius: 50%; background: ${dayColors[index % dayColors.length]};"></div>
-                  <span style="font-weight: 500; color: #374151;">Ngày ${day.day_number}</span>
-                </div>
-              `).join('');
-              return div;
-            };
-            legend.addTo(fullscreenMapRef.current);
-          }
-        }
-      }, 100);
-    }
-
-    return () => {
-      if (!isFullscreen && fullscreenMapRef.current) {
-        fullscreenMapRef.current.remove();
-        fullscreenMapRef.current = null;
-      }
-    };
-  }, [isFullscreen]);
 
   return (
     <>
       {/* Inline map */}
       <div
         ref={mapContainerRef}
-        className="w-full h-56 cursor-pointer"
-        style={{ cursor: 'pointer' }}
+        className="w-full h-56"
       ></div>
-
-      {/* Fullscreen modal */}
-      {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col">
-          <button
-            onClick={() => setIsFullscreen(false)}
-            className="absolute top-4 right-4 z-50 bg-white text-gray-900 rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div ref={fullscreenMapContainerRef} className="w-full h-full"></div>
-        </div>
-      )}
     </>
   );
 }
