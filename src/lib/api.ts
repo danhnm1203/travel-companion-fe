@@ -82,7 +82,7 @@ export async function generateItinerary(
     req: GenerateItineraryRequest
 ): Promise<ItineraryResponse> {
     const res = await fetch(
-        `${API_BASE_URL}/api/v1/itineraries/itineraries/generate`,
+        `${API_BASE_URL}/api/v1/itineraries/generate`,
         {
             method: "POST",
             headers: { "Content-Type": "application/json" },
