@@ -1,5 +1,5 @@
-import { useState, memo } from 'react';
-import { ChevronUp, Clock, Car } from 'lucide-react';
+import { useState, memo, useCallback } from 'react';
+import { ChevronUp, Clock, Car, Map } from 'lucide-react';
 import { type ItineraryItemResponse } from '@/lib/api';
 import { getCategoryStyle, getCategoryLabel, translateNotes } from '@/data/categories';
 
@@ -73,12 +73,22 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
             {/* Line 1: Time + Badges */}
             <div className="flex items-start justify-between mb-2">
               <span className="text-sm font-semibold text-emerald-700">{formatTime(item.visit_time)}</span>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 items-center">
                 {isMustTry && (
                   <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-medium">
                     Must-try
                   </span>
                 )}
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${poi.latitude},${poi.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-emerald-600 transition-colors"
+                  title="Chỉ đường (Google Maps)"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Map className="w-4 h-4" />
+                </a>
               </div>
             </div>
 
@@ -89,6 +99,9 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
             {poi.google_rating != null && (
               <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-2">
                 <span>⭐ {poi.google_rating.toFixed(1)}</span>
+                {poi.google_reviews_count != null && (
+                  <span className="text-gray-400">({poi.google_reviews_count.toLocaleString()} đánh giá)</span>
+                )}
               </div>
             )}
 

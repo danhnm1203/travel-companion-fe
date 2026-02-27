@@ -23,6 +23,7 @@ export interface POIResponse {
     categories: string[];
     tips: string[];
     warnings: string[];
+    google_reviews_count: number | null;
 }
 
 export interface AccommodationResponse {
@@ -36,6 +37,7 @@ export interface AccommodationResponse {
     categories: string[];
     tips: string[];
     warnings: string[];
+    google_reviews_count: number | null;
 }
 
 export interface ItineraryItemResponse {
