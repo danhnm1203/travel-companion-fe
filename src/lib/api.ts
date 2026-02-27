@@ -76,7 +76,7 @@ export interface ItineraryResponse {
 // ── API Service ──────────────────────────────────────────────────────────────
 
 const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://54.169.1.219";
 
 export async function generateItinerary(
     req: GenerateItineraryRequest
