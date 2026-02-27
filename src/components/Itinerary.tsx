@@ -167,7 +167,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
           <div className="space-y-0">
             {sortedItems.map((item, index) => (
               <POICard
-                key={item.poi.id}
+                key={`day-${currentDay.day_number}-${item.order_index}-${item.poi.id}-${index}`}
                 item={item}
                 showTravel={index > 0}
               />
