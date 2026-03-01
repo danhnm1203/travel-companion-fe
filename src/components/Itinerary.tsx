@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
   Share2,
   Bookmark,
@@ -56,6 +56,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
   );
   const [showFeedbackOptions, setShowFeedbackOptions] = useState(false);
   const [showInfographic, setShowInfographic] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const currentDay = itinerary.days[activeDay];
 
@@ -153,7 +154,13 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
                 return (
                   <button
                     key={day.day_number}
-                    onClick={() => setActiveDay(index)}
+                    onClick={() => {
+                      setActiveDay(index);
+                      scrollContainerRef.current?.scrollTo({
+                        top: 0,
+                        behavior: "smooth",
+                      });
+                    }}
                     className={`flex-1 py-2 px-2 rounded-lg text-sm font-medium transition-colors ${
                       activeDay === index
                         ? "bg-emerald-600 text-white"
@@ -178,7 +185,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
         </div>
 
         {/* Content area - scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
           {/* Inline map */}
           <InlineMapView days={itinerary.days} activeDay={activeDay} />
 
