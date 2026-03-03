@@ -24,6 +24,7 @@ export interface POIResponse {
     tips: string[];
     warnings: string[];
     google_reviews_count: number | null;
+    must_visit: boolean;
 }
 
 export interface AccommodationResponse {

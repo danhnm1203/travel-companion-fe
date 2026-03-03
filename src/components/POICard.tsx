@@ -30,7 +30,7 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
   const firstTip = poi.tips?.[0];
   const remainingTips = poi.tips?.slice(1) || [];
   const catStyle = getCategoryStyle(poi.categories);
-  const isMustTry = item.match_score >= 0.85;
+  const isMustTry = poi.must_visit;
 
   return (
     <div className="relative">

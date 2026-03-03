@@ -118,7 +118,7 @@ export default function MapView({ day }: MapViewProps) {
                         {getCatLabel(item.poi.categories)}
                       </span>
                     </div>
-                    {item.match_score >= 0.85 && (
+                    {item.poi.must_visit && (
                       <div className="mb-2">
                         <span className="inline-flex items-center text-xs bg-red-50 text-red-700 px-2 py-1 rounded-full font-medium">
                           ⭐ Must-try
