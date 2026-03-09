@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -55,13 +54,13 @@ const slideTransition = {
 };
 
 export default function TripWizard() {
-  const router = useRouter();
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing');
   const [direction, setDirection] = useState(1);
   const [selections, setSelections] = useState<TripSelections>({
     vibes: []
   });
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [, setIsGenerating] = useState(false);
+  const [generatedItinerary, setGeneratedItinerary] = useState<ItineraryResponse | null>(null);
 
   const navigateTo = useCallback((screen: Screen, dir = 1) => {
     setDirection(dir);
@@ -96,7 +95,8 @@ export default function TripWizard() {
     try {
       const result = await generateItinerary(request);
       setIsGenerating(false);
-      router.push(`/itinerary/${result.id}`);
+      setGeneratedItinerary(result);
+      navigateTo('itinerary');
     } catch (err) {
       setIsGenerating(false);
       navigateTo('step5', -1);
@@ -117,7 +117,6 @@ export default function TripWizard() {
   const goToStep3Back = useCallback(() => navigateTo('step3', -1), [navigateTo]);
   const goToStep5 = useCallback(() => navigateTo('step5'), [navigateTo]);
   const goToStep4Back = useCallback(() => navigateTo('step4', -1), [navigateTo]);
-  const goToStep5Back = useCallback(() => navigateTo('step5', -1), [navigateTo]);
   const handleEditStep = useCallback((step: string) => navigateTo(step as Screen, -1), [navigateTo]);
 
   const selectDuration = useCallback((v: string) => updateSelection('duration', v), [updateSelection]);
@@ -176,6 +175,16 @@ export default function TripWizard() {
         );
       case 'loading':
         return <LoadingScreen />;
+      case 'itinerary':
+        return generatedItinerary ? (
+          <Itinerary
+            itinerary={generatedItinerary}
+            onCreateNew={() => {
+              setGeneratedItinerary(null);
+              navigateTo('landing', -1);
+            }}
+          />
+        ) : null;
       default:
         return null;
     }

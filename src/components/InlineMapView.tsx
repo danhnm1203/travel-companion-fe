@@ -1,22 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
-import { type DayResponse } from '@/lib/api';
-import { getCategoryLabel, getCategoryColor } from '@/data/categories';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { type DayResponse } from '@/lib/api';
+import { getCategoryLabel, getCategoryColor } from '@/data/categories';
 
 interface InlineMapViewProps {
   days: DayResponse[];
   activeDay: number;
 }
-
-// Fix default icon issue with Leaflet + Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
 
 const dayColors = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899'];
 
@@ -24,94 +15,107 @@ function formatTime(timeStr: string): string {
   return timeStr.slice(0, 5);
 }
 
+async function fetchRoadRoute(items: DayResponse['items']): Promise<[number, number][]> {
+  if (items.length < 2) return items.map(i => [i.poi.latitude, i.poi.longitude]);
+  const coords = items.map(i => `${i.poi.longitude},${i.poi.latitude}`).join(';');
+  try {
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+    );
+    const data = await res.json();
+    if (data.code === 'Ok' && data.routes?.[0]) {
+      return data.routes[0].geometry.coordinates.map(
+        ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
+      );
+    }
+  } catch {}
+  return items.map(i => [i.poi.latitude, i.poi.longitude]);
+}
+
+function injectMarkerStyles() {
+  if (document.getElementById('poi-marker-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'poi-marker-styles';
+  style.textContent = `
+    .poi-marker-wrap {
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transform-origin: center center;
+    }
+    .poi-marker-wrap:hover {
+      transform: scale(1.25) !important;
+      z-index: 1000 !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function buildIcon(num: number, color: string): L.DivIcon {
+  const html = `
+    <div class="poi-marker-wrap" style="
+      width:22px;height:22px;border-radius:4px;
+      border:2px solid ${color};
+      box-shadow:0 2px 6px rgba(0,0,0,0.35);
+      background-color:${color};
+      cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+    ">
+      <span style="color:white;font-weight:bold;font-size:10px;">${num}</span>
+    </div>
+  `;
+  return L.divIcon({ html, className: '', iconSize: [22, 22], iconAnchor: [11, 11] });
+}
+
 export default function InlineMapView({ days, activeDay }: InlineMapViewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const routeLinesRef = useRef<L.Polyline[]>([]);
-  const markersRef = useRef<L.Marker[]>([]);
 
-  const initializeMap = (container: HTMLDivElement) => {
-    // Collect all POIs from all days
-    const allDaysData = days.map((day, dayIndex) => ({
-      day: dayIndex,
-      items: day.items,
-      color: dayColors[dayIndex % dayColors.length],
-    }));
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    injectMarkerStyles();
 
-    // Calculate center point of all POIs
-    const allItems = allDaysData.flatMap(d => d.items);
-    if (allItems.length === 0) return null;
+    const map = L.map(containerRef.current, { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+    mapRef.current = map;
 
-    const lats = allItems.map(item => item.poi.latitude);
-    const lngs = allItems.map(item => item.poi.longitude);
-    const centerLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
-    const centerLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
 
-    // Create map
-    const map = L.map(container).setView([centerLat, centerLng], 10);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
 
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 18,
-    }).addTo(map);
+    map.eachLayer(layer => {
+      if (!(layer instanceof L.TileLayer)) map.removeLayer(layer);
+    });
 
-    const routeLines: L.Polyline[] = [];
-    const markers: L.Marker[] = [];
+    const visibleDays = activeDay === -1
+      ? days.map((day, i) => ({ day, dayIndex: i }))
+      : [{ day: days[activeDay], dayIndex: activeDay }].filter(x => x.day);
+
+    const allCoords: [number, number][] = [];
     let poiCounter = 0;
 
-    // Draw routes and markers for each day
-    allDaysData.forEach(({ items, color }) => {
-      if (items.length === 0) return;
+    visibleDays.forEach(({ day, dayIndex }) => {
+      const color = dayColors[dayIndex % dayColors.length];
 
-      // Draw route polyline for this day
-      const routeCoords: [number, number][] = items.map(item => [item.poi.latitude, item.poi.longitude]);
-      const polyline = L.polyline(routeCoords, {
-        color: color,
-        weight: 3,
-        opacity: 0.8,
-        dashArray: '10, 5',
-      }).addTo(map);
-      routeLines.push(polyline);
-
-      // Add markers for this day's POIs
-      items.forEach((item) => {
+      day.items.forEach(item => {
         poiCounter++;
+        const num = poiCounter;
+        const lat = item.poi.latitude;
+        const lng = item.poi.longitude;
+        allCoords.push([lat, lng]);
 
-        const customIcon = L.divIcon({
-          className: 'custom-marker',
-          html: `
-            <div style="
-              background-color: ${color};
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 14px;
-              border: 3px solid white;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            ">
-              ${poiCounter}
-            </div>
-          `,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
-        });
+        const marker = L.marker([lat, lng], { icon: buildIcon(num, color) }).addTo(map);
 
-        const marker = L.marker([item.poi.latitude, item.poi.longitude], { icon: customIcon }).addTo(map);
-        markers.push(marker);
-
-        // Add popup with POI info
         const catColor = getCategoryColor(item.poi.categories);
         marker.bindPopup(`
-          <div style="min-width: 180px;">
-            <h3 style="font-weight: bold; margin-bottom: 4px; font-size: 14px;">${item.poi.name}</h3>
-            <p style="font-size: 12px; color: #666; margin: 2px 0;">${formatTime(item.visit_time)}</p>
-            <span style="font-size: 11px; background: ${catColor}20; color: ${catColor}; padding: 2px 6px; border-radius: 4px; font-weight: 500;">
+          <div style="min-width:160px;">
+            <p style="font-weight:bold;margin-bottom:2px;font-size:13px;">${item.poi.name}</p>
+            <p style="font-size:12px;color:#666;margin:2px 0;">${formatTime(item.visit_time)}</p>
+            <span style="font-size:11px;background:${catColor}20;color:${catColor};padding:2px 6px;border-radius:4px;font-weight:500;">
               ${getCategoryLabel(item.poi.categories)}
             </span>
           </div>
@@ -119,136 +123,18 @@ export default function InlineMapView({ days, activeDay }: InlineMapViewProps) {
       });
     });
 
-    // Add legend
-    const legend = new L.Control({ position: 'topright' });
-    legend.onAdd = () => {
-      const div = L.DomUtil.create('div', 'map-legend');
-      div.style.cssText = 'background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 12px;';
-      div.innerHTML = days.map((day, index) => `
-        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: ${index < days.length - 1 ? '4px' : '0'};">
-          <div style="width: 12px; height: 12px; border-radius: 50%; background: ${dayColors[index % dayColors.length]};"></div>
-          <span style="font-weight: 500; color: #374151;">Ngày ${day.day_number}</span>
-        </div>
-      `).join('');
-      return div;
-    };
-    legend.addTo(map);
-
-    // Fit bounds to show all markers
-    const allCoords: [number, number][] = allItems.map(item => [item.poi.latitude, item.poi.longitude]);
-    const bounds = L.latLngBounds(allCoords);
-    map.fitBounds(bounds, { padding: [50, 50] });
-
-    // Store references
-    // Store references
-    routeLinesRef.current = routeLines;
-    markersRef.current = markers;
-
-
-    return map;
-  };
-
-  // Initialize main map
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
-
-    if (!mapRef.current) {
-      mapRef.current = initializeMap(mapContainerRef.current);
+    if (allCoords.length > 0) {
+      map.fitBounds(L.latLngBounds(allCoords), { padding: [40, 40] });
     }
 
-    return () => {
+    visibleDays.forEach(async ({ day, dayIndex }) => {
+      const color = dayColors[dayIndex % dayColors.length];
+      const routeCoords = await fetchRoadRoute(day.items);
       if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, []);
-
-  // Update map when activeDay changes
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const allDaysData = days.map((day, dayIndex) => ({
-      day: dayIndex,
-      items: day.items,
-    }));
-
-    // Update opacity based on active day
-    routeLinesRef.current.forEach((line, dayIndex) => {
-      if (activeDay === -1) {
-        line.setStyle({ opacity: 0.8 });
-      } else {
-        line.setStyle({ opacity: dayIndex === activeDay ? 0.9 : 0.3 });
+        L.polyline(routeCoords, { color, weight: 4, opacity: 0.85 }).addTo(mapRef.current);
       }
     });
+  }, [days, activeDay]);
 
-    markersRef.current.forEach((marker, markerIndex) => {
-      // Determine which day this marker belongs to
-      let currentItemCount = 0;
-      let markerDay = -1;
-      for (let i = 0; i < allDaysData.length; i++) {
-        if (markerIndex < currentItemCount + allDaysData[i].items.length) {
-          markerDay = i;
-          break;
-        }
-        currentItemCount += allDaysData[i].items.length;
-      }
-
-      const opacity = activeDay === -1 || markerDay === activeDay ? '1' : '0.4';
-      const color = dayColors[markerDay % dayColors.length] || '#6b7280';
-      const newIcon = L.divIcon({
-        className: 'custom-marker',
-        html: `
-          <div style="
-            background-color: ${color};
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            border: 3px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            opacity: ${opacity};
-          ">
-            ${markerIndex + 1}
-          </div>
-        `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-      });
-      marker.setIcon(newIcon);
-    });
-
-    // Zoom to fit active day or all days
-    if (activeDay !== -1 && allDaysData[activeDay]) {
-      const activeDayItems = allDaysData[activeDay].items;
-      if (activeDayItems.length > 0) {
-        const coords: [number, number][] = activeDayItems.map(item => [item.poi.latitude, item.poi.longitude]);
-        const bounds = L.latLngBounds(coords);
-        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
-      }
-    } else {
-      const allItems = allDaysData.flatMap(d => d.items);
-      const coords: [number, number][] = allItems.map(item => [item.poi.latitude, item.poi.longitude]);
-      if (coords.length > 0) {
-        const bounds = L.latLngBounds(coords);
-        mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-      }
-    }
-  }, [activeDay]);
-
-
-  return (
-    <>
-      {/* Inline map */}
-      <div
-        ref={mapContainerRef}
-        className="w-full h-56"
-      ></div>
-    </>
-  );
+  return <div ref={containerRef} className="w-full h-56" />;
 }
