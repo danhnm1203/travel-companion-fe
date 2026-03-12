@@ -12,8 +12,9 @@ import {
   Map,
 } from "lucide-react";
 import { toast } from "sonner";
-import { type ItineraryResponse } from "@/lib/api";
+import { type ItineraryResponse, type ItineraryItemResponse } from "@/lib/api";
 import POICard from "./POICard";
+import POIDetailSheet from "./POIDetailSheet";
 import dynamic from "next/dynamic";
 
 // Lazy-load heavy components
@@ -56,6 +57,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
   );
   const [showFeedbackOptions, setShowFeedbackOptions] = useState(false);
   const [showInfographic, setShowInfographic] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ItineraryItemResponse | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const currentDay = itinerary.days[activeDay];
@@ -190,19 +192,9 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
           <InlineMapView days={itinerary.days} activeDay={activeDay} />
 
           <div className="px-4 py-4">
-            {/* Day title + Google Maps route button */}
+            {/* Day title */}
             <div className="mb-4">
-              <h2 className="text-lg font-bold mb-2">{currentDay.theme}</h2>
-              <a
-                href={buildGoogleMapsRouteUrl(currentDay.items)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-sm px-3 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors"
-              >
-                <MapPin className="w-4 h-4" />
-                Mở lộ trình Ngày {currentDay.day_number} trong Google Maps
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <h2 className="text-lg font-bold">{currentDay.theme}</h2>
             </div>
 
             {/* POI timeline */}
@@ -212,6 +204,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
                   key={`day-${currentDay.day_number}-${item.order_index}-${item.poi.id}-${index}`}
                   item={item}
                   showTravel={index > 0}
+                  onDetailClick={(item) => setSelectedItem(item)}
                 />
               ))}
             </div>
@@ -262,7 +255,7 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
               <h3 className="font-semibold mb-3">
                 Tổng kết Ngày {currentDay.day_number}
               </h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                 <div>
                   <div className="text-gray-600">Tổng quãng đường</div>
                   <div className="font-semibold">
@@ -276,6 +269,20 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Google Maps CTA */}
+              <a
+                href={buildGoogleMapsRouteUrl(currentDay.items)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 px-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors flex items-center justify-center gap-2 text-blue-700 font-medium"
+              >
+                <span className="text-lg">🗺️</span>
+                <span>Mở route Ngày {currentDay.day_number} trên Google Maps</span>
+              </a>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Xem đường đi chi tiết và điều hướng từng chặng
+              </p>
             </div>
 
             {/* Footer actions - only show on last day */}
@@ -393,6 +400,14 @@ export default function Itinerary({ itinerary, onCreateNew }: ItineraryProps) {
         <ItineraryInfographic
           itinerary={itinerary}
           onClose={() => setShowInfographic(false)}
+        />
+      )}
+
+      {/* POI Detail Sheet */}
+      {selectedItem && (
+        <POIDetailSheet
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
         />
       )}
     </>

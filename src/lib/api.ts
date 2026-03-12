@@ -12,6 +12,14 @@ export interface GenerateItineraryRequest {
     keep_same_accommodation?: boolean;
 }
 
+export interface TopReview {
+    rating: number;
+    title: string | null;
+    content: string;
+    author_name: string;
+    visited_date: string | null;
+}
+
 export interface POIResponse {
     id: string;
     name: string;
@@ -25,6 +33,7 @@ export interface POIResponse {
     warnings: string[];
     google_reviews_count: number | null;
     must_visit: boolean;
+    top_reviews: TopReview[];
 }
 
 export interface AccommodationResponse {
@@ -39,6 +48,7 @@ export interface AccommodationResponse {
     tips: string[];
     warnings: string[];
     google_reviews_count: number | null;
+    top_reviews: TopReview[];
 }
 
 export interface ItineraryItemResponse {

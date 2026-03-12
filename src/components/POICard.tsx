@@ -1,11 +1,12 @@
 import { useState, memo, useCallback } from 'react';
-import { ChevronUp, Clock, Car, Map } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Car, Map } from 'lucide-react';
 import { type ItineraryItemResponse } from '@/lib/api';
 import { getCategoryStyle, getCategoryLabel, translateNotes } from '@/data/categories';
 
 interface POICardProps {
   item: ItineraryItemResponse;
   showTravel: boolean;
+  onDetailClick?: (item: ItineraryItemResponse) => void;
 }
 
 function formatTime(timeStr: string): string {
@@ -23,7 +24,7 @@ function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
+const POICard = memo(function POICard({ item, showTravel, onDetailClick }: POICardProps) {
   const [showAllTips, setShowAllTips] = useState(false);
   const { poi } = item;
   const hasWarnings = poi.warnings && poi.warnings.length > 0;
@@ -37,16 +38,15 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
       {/* Travel segment */}
       {showTravel && item.travel_time_from_prev_minutes != null && (
         <div className="flex items-center gap-2 py-3 pl-5">
-          <div className="w-px h-6 bg-gray-300"></div>
-          <div className="flex-1 flex items-center gap-2 text-sm text-gray-600">
-            <Car className="w-4 h-4" />
-            <span>{formatDuration(item.travel_time_from_prev_minutes)}</span>
-            {item.distance_from_prev_km != null && (
-              <>
-                <span>·</span>
-                <span>{formatDistance(item.distance_from_prev_km)}</span>
-              </>
-            )}
+          <div className="w-px h-6 bg-gray-200"></div>
+          <div className="flex items-center gap-1.5 flex-1 justify-center">
+            <ChevronDown className="w-3 h-3 text-gray-400" />
+            <div className="text-xs text-gray-400">
+              ~{formatDuration(item.travel_time_from_prev_minutes)}
+              {item.distance_from_prev_km != null && (
+                <> · {formatDistance(item.distance_from_prev_km)}</>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -75,7 +75,7 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
               <span className="text-sm font-semibold text-emerald-700">{formatTime(item.visit_time)}</span>
               <div className="flex gap-1.5 items-center">
                 {isMustTry && (
-                  <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                  <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
                     Must-try
                   </span>
                 )}
@@ -174,6 +174,18 @@ const POICard = memo(function POICard({ item, showTravel }: POICardProps) {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Detail link */}
+            {onDetailClick && (
+              <div className="flex justify-end mt-2">
+                <button
+                  onClick={() => onDetailClick(item)}
+                  className="text-xs text-emerald-600 font-medium hover:text-emerald-700 transition-colors"
+                >
+                  Xem chi tiết →
+                </button>
               </div>
             )}
           </div>
